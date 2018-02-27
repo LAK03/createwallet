@@ -13,6 +13,7 @@ var mongoose = require("mongoose");
 mongoose.Promise = global.Promise;
 mongoose.connect("mongodb://localhost:27017/wallets");
 
+
 app.get("/", (req, res) => {
   res.send("Hello World");
 });
@@ -22,22 +23,52 @@ app.listen(port, () => {
 });
 
 var nameSchema = new mongoose.Schema({
-  UserName: String,
+  email: { type: String, index: { unique: true } },
   WalletAddress: String
 });
 var Wallet = mongoose.model("Wallet", nameSchema);
 
-app.post("/addDetails", async(req, res) => {
-  let address = await createWalletforUser();
+async function getUserWalletAddress(email){
+  var user_add;
+  await Wallet.find({'email':email}).then(result => {
+    user_add = result[0].WalletAddress;
+    console.log("user wallet address:"+user_add);
+
+  }).catch(err => {
+    console.log("User doesnt exist");
+
+  });
+  return user_add;
+
+}
+
+app.post("/getWalletDetails", (req, res) => {
+
+  //var myData = new Wallet({email: name, WalletAddress: address} );
+    var user_email = req.body.email ;
+
+    Wallet.find({'email':user_email},{ '_id':0, 'email':0}).then(result => {
+      res.send("user Wallet :"+result[0].WalletAddress);
+    }).catch(err => {
+      res.status(400).send("User doesnt exist");
+    });
+
+});
+
+
+
+app.post("/WalletForUser", async(req, res) => {
+let address = await createWalletforUser();
+
   console.log("address returned:" + address);
-  var name = req.body.UserName;
+  var name = req.body.email;
   console.log("name:"+name);
 
-  var myData = new Wallet({UserName: name, WalletAddress: address} );
+  var myData = new Wallet({email: name, WalletAddress: address} );
   console.log("Print data mongo record: " + myData);
   myData.save()
     .then(item => {
-      res.send("item saved to database:" + myData);
+      res.send("Created a ETH wallet for user :" + address);
     })
     .catch(err => {
       res.status(400).send("unable to save to database");
@@ -52,34 +83,35 @@ async function createWalletforUser() {
   return add;
 }
 
-function getweb3() {
-  if (typeof web3 !== 'undefined') {
-    console.warn("Using web3 detected from external source like AWS")
+app.post("/sendTransaction", async(req, res) => {
+  var user_email = req.body.email;
+  var to_address = req.body.to_address;
+  var value = req.body.amount;
+  let from_address = await getUserWalletAddress(user_email);
+  console.log("user address (from_address)==>"+from_address);
+  var web34 = new web3(new web3.providers.HttpProvider("http://34.213.252.82:8000"));
+  await web34.eth.personal.unlockAccount(from_address,"test",15000);
+  let BuserAccBalance = await web34.eth.getBalance(from_address);
+  let tran_hash = await web34.eth.sendTransaction({from:from_address,to:to_address,value:value});
+  console.log("Transaction Hash:"+JSON.stringify(tran_hash));
+  let AuserAccBalance = await web34.eth.getBalance(from_address);
+  res.send("User Balance before Transaction:"+BuserAccBalance+" User Balance after Transaction:"+AuserAccBalance+"\nTransaction successfull and Transaction Hash is:"+tran_hash.transactionHash);
 
-    web3 = new web3(new web3.providers.HttpProvider("http://localhost:8545"));
+});
 
-    //console.log("Connectiong to localhost - if->"+window.web3);
-  }
+app.post("/receiveTransaction", async(req, res) => {
+  var user_email = req.body.email;
+  var from_address = req.body.from_address;
+  var value = req.body.amount;
+  let to_address = await getUserWalletAddress(user_email);
+  console.log("user address (to_address)==>"+to_address);
+  
+  var web34 = new web3(new web3.providers.HttpProvider("http://34.213.252.82:8000"));
+  await web34.eth.personal.unlockAccount(from_address,"test",15000);
+  let BuserAccBalance = await web34.eth.getBalance(to_address);
+  let tran_hash = await web34.eth.sendTransaction({from:from_address,to:to_address,value:value});
+  console.log("Transaction Hash:"+JSON.stringify(tran_hash));
+  let AuserAccBalance = await web34.eth.getBalance(to_address);
+  res.send("User Balance before Transaction:"+BuserAccBalance+" User Balance after Transaction:"+AuserAccBalance+"\nTransaction successfull and Transaction Hash is:"+tran_hash.transactionHash);
 
-  //	EventReg.setProvider(window.web3.currentProvider);
-
-  web3.eth.getAccounts(function(err, accs) {
-    if (err != null) {
-      alert('There was an error fetching your accounts.');
-      return;
-    }
-    if (accs.length == 0) {
-      alert("Coundn't get any accounts!");
-      return;
-    }
-
-    console.log('No of accounts->' + accs.length);
-    accounts = accs;
-    console.log('account ' + accounts[0])
-    //  console.log('account '+accounts[1])
-    account = accounts[0];
-
-
-  });
-
-}
+});
