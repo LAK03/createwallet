@@ -71,13 +71,13 @@ let address = await createWalletforUser();
       res.send("Created a ETH wallet for user :" + address);
     })
     .catch(err => {
-      res.status(400).send("unable to save to database");
+      res.status(400).send("User already exists .Unable to save to database");
     });
 });
 
 async function createWalletforUser() {
   //getweb3();
-  var web34 = new web3(new web3.providers.HttpProvider("http://34.213.252.82:8000"));
+  var web34 = new web3(new web3.providers.HttpProvider("<GETH NODE SERVER>"));
   let add = await web34.eth.personal.newAccount('test');
   console.log("Wallet Created :" + add);
   return add;
@@ -89,7 +89,8 @@ app.post("/sendTransaction", async(req, res) => {
   var value = req.body.amount;
   let from_address = await getUserWalletAddress(user_email);
   console.log("user address (from_address)==>"+from_address);
-  var web34 = new web3(new web3.providers.HttpProvider("http://34.213.252.82:8000"));
+  
+  var web34 = new web3(new web3.providers.HttpProvider(<GETH NODE SERVER>));
   await web34.eth.personal.unlockAccount(from_address,"test",15000);
   let BuserAccBalance = await web34.eth.getBalance(from_address);
   let tran_hash = await web34.eth.sendTransaction({from:from_address,to:to_address,value:value});
@@ -105,8 +106,8 @@ app.post("/receiveTransaction", async(req, res) => {
   var value = req.body.amount;
   let to_address = await getUserWalletAddress(user_email);
   console.log("user address (to_address)==>"+to_address);
-  
-  var web34 = new web3(new web3.providers.HttpProvider("http://34.213.252.82:8000"));
+
+  var web34 = new web3(new web3.providers.HttpProvider(<GETH NODE SERVER>));
   await web34.eth.personal.unlockAccount(from_address,"test",15000);
   let BuserAccBalance = await web34.eth.getBalance(to_address);
   let tran_hash = await web34.eth.sendTransaction({from:from_address,to:to_address,value:value});
